@@ -1,0 +1,25 @@
+{
+  "name": "jetson-t265",
+  "dockerFile": "${localWorkspaceFolder}/Dockerfile",
+  "build": {
+    "args": {
+      "USER_UID": "1000", // Please check your user id using `id -u` in your host machine
+      "USER_GID": "1000", // Please check your group id using `id -g` in your host machine
+    },
+  },
+  "runArgs": [
+    "--volume=/tmp/.X11-unix/:/tmp/.X11-unix/", // For GUI display
+    "--runtime=nvidia",
+    "--volume=/dev:/dev",
+    "--device-cgroup-rule=c 81:* rmw",
+    "--device-cgroup-rule=c 189:* rmw"
+  ],
+  "remoteEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/real/${localWorkspaceFolderBasename},type=bind",
+  "workspaceFolder": "/home/real/${localWorkspaceFolderBasename}", // Only for aliengo development
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.zsh_history,target=/home/real/.zsh_history,type=bind",
+  ],
+}
