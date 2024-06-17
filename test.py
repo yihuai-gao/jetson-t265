@@ -3,7 +3,7 @@ import pyrealsense2 as rs
 from pprint import pprint
 from collections import namedtuple
 from functools import partial
-
+import time
 attrs = [
     'acceleration',
     'angular_acceleration',
@@ -25,6 +25,8 @@ def main():
     pipeline.start(cfg)
     poses = []
     print("start loop")
+    prev_time = time.monotonic()
+    cnt = 0
     try:
         while True:
             frames = pipeline.wait_for_frames()
@@ -35,9 +37,11 @@ def main():
                 timestamp = pose_frame.get_timestamp()
                 p = Pose(*map(partial(getattr, pose), attrs))
                 poses.append((n, timestamp, p))
-                print(f"Translation: x: {p.translation.x:+.5f} y: {p.translation.y:+.5f} z: {p.translation.z:+.5f}")
+                print(f"cnt: {cnt} x: {p.translation.x:+.5f} y: {p.translation.y:+.5f} z: {p.translation.z:+.5f}, fps: {1/(time.monotonic()-prev_time):.1f}, time: {time.monotonic():.4f}")
                 # if len(poses) == 100:
                 #     return
+                cnt += 1
+                prev_time = time.monotonic()
     finally:
         pipeline.stop()
         duration = (poses[-1][1]-poses[0][1])/1000

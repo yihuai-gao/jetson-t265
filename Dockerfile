@@ -102,27 +102,69 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-ARG LIBREALSENSE_VERSION=v2.50.0
 
-RUN git clone --branch ${LIBREALSENSE_VERSION} --depth=1 https://github.com/IntelRealSense/librealsense && \
-    cd librealsense && \
-    mkdir build && \
-    cd build && \
-    cmake \
-        -DBUILD_EXAMPLES=true \
-	   -DFORCE_RSUSB_BACKEND=true \
-	   -DBUILD_WITH_CUDA=true \
-	   -DCMAKE_BUILD_TYPE=release \
-	   -DBUILD_PYTHON_BINDINGS=bool:true \
-	#    -DPYTHON_EXECUTABLE=/home/${USERNAME}/miniforge3/bin/python \
-	#    -DPYTHON_INSTALL_DIR=$(/home/${USERNAME}/miniforge3/bin/python -c 'import sys; print(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages")') \
-	   -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-	   -DPYTHON_INSTALL_DIR=$(python3 -c 'import sys; print(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages")') \
-	   ../ && \
-    make -j$(($(nproc)-1)) && \
-    make install && \
-    cd ../ && \
-    cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ && \
-    rm -rf librealsense
+# To build library from scratch (takes ~30min)
+# ARG LIBREALSENSE_VERSION=v2.50.0
+
+# RUN git clone --branch ${LIBREALSENSE_VERSION} --depth=1 https://github.com/IntelRealSense/librealsense && \
+#     cd librealsense && \
+#     mkdir build && \
+#     cd build && \
+#     cmake \
+#         -DBUILD_EXAMPLES=true \
+# 	   -DFORCE_RSUSB_BACKEND=true \
+# 	   -DBUILD_WITH_CUDA=true \
+# 	   -DCMAKE_BUILD_TYPE=release \
+# 	   -DBUILD_PYTHON_BINDINGS=bool:true \
+# 	#    -DPYTHON_EXECUTABLE=/home/${USERNAME}/miniforge3/bin/python \
+# 	#    -DPYTHON_INSTALL_DIR=/home/${USERNAME}/miniforge3/lib/python3.10/site-packages \
+# 	   -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+# 	   -DPYTHON_INSTALL_DIR=$(python3 -c 'import sys; print(f"/usr/lib/python{sys.version_info.major}.{sys.version_info.minor}/dist-packages")') \
+# 	   ../ && \
+#     make -j$(($(nproc)-1)) && \
+#     make install && \
+#     cd ../ && \
+#     cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ && \
+#     rm -rf librealsense
+
+# # Directly install from pre-built library
+COPY lib/pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
+COPY lib/pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
+COPY lib/librealsense2.so.2.50.0 /usr/local/lib
+
+RUN cd /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/ && \
+    ln -s pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 pybackend2.cpython-310-aarch64-linux-gnu.so && \
+    ln -s pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 pyrealsense2.cpython-310-aarch64-linux-gnu.so
+RUN cd /usr/local/lib && \
+    ln -s librealsense2.so.2.50.0 librealsense2.so
 
 USER ${USERNAME}
+
+# Fix ./zshrc file
+RUN sed -i "s/\\\\\\\\/\\\\/g" /home/${USERNAME}/.zshrc && \
+    sed -i "s/\\\\n/\\n/g" /home/${USERNAME}/.zshrc
+
+# RUN /home/${USERNAME}/miniforge3/bin/conda config --env --add channels robostack-staging && \
+#     /home/${USERNAME}/miniforge3/bin/mamba install -y ros-humble-ros-base python3-colcon-common-extensions
+
+
+# # Install unitree ros
+# RUN git clone https://github.com/unitreerobotics/unitree_ros2.git && \
+#     cd unitree_ros2/cyclonedds_ws/src && \
+#     git clone https://github.com/ros2/rmw_cyclonedds -b humble && \
+#     git clone https://github.com/eclipse-cyclonedds/cyclonedds -b releases/0.10.x && \
+#     cd .. && \
+#     colcon build --packages-select cyclonedds
+
+# RUN cd unitree_ros2/cyclonedds_ws && \
+#     /home/${USERNAME}/miniforge3/bin/pip install empy==3.3.2 catkin_pkg pyparsing lark && \
+#     /bin/zsh -c "cd ~/unitree_ros2/cyclonedds_ws && mamba activate base && colcon build"
+
+# RUN sed -i "s/\\\\\\\\/\\\\/g" /home/${USERNAME}/.zshrc && \
+#     sed -i "s/\\\\n/\\n/g" /home/${USERNAME}/.zshrc
+
+# RUN echo "source /home/\${USERNAME}/unitree_ros2/cyclonedds_ws/install/setup.zsh" >> /home/${USERNAME}/.zshrc && \
+#     echo "export CYCLONEDDS_URI=/home/\${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml" >> /home/${USERNAME}/.zshrc && \
+#     sed -i "s/enp2s0/eth0/g" /home/${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml
+
+# RUN echo "source /home/\${USERNAME}/unitree-api/ros2/install/setup.zsh" >> /home/${USERNAME}/.zshrc
