@@ -127,44 +127,52 @@ RUN apt-get update && \
 #     cp ./config/99-realsense-libusb.rules /etc/udev/rules.d/ && \
 #     rm -rf librealsense
 
-# # Directly install from pre-built library
-COPY lib/pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
-COPY lib/pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
+# Directly install from pre-built library
 COPY lib/librealsense2.so.2.50.0 /usr/local/lib
-
-RUN cd /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/ && \
-    ln -s pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 pybackend2.cpython-310-aarch64-linux-gnu.so && \
-    ln -s pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 pyrealsense2.cpython-310-aarch64-linux-gnu.so
 RUN cd /usr/local/lib && \
     ln -s librealsense2.so.2.50.0 librealsense2.so
 
+## Install python bindings
+
+## For python3.10
+# COPY lib/pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
+# COPY lib/pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/
+# RUN cd /home/${USERNAME}/miniforge3/lib/python3.10/site-packages/ && \
+#     ln -s pybackend2.cpython-310-aarch64-linux-gnu.so.2.50.0 pybackend2.cpython-310-aarch64-linux-gnu.so && \
+#     ln -s pyrealsense2.cpython-310-aarch64-linux-gnu.so.2.50.0 pyrealsense2.cpython-310-aarch64-linux-gnu.so
+
+## For python3.8
+COPY lib/pybackend2.cpython-38-aarch64-linux-gnu.so.2.50.0 /usr/lib/python3.8/dist-packages/
+COPY lib/pyrealsense2.cpython-38-aarch64-linux-gnu.so.2.50.0 /usr/lib/python3.8/dist-packages/
+RUN cd /usr/lib/python3.8/dist-packages/ && \
+    ln -s pybackend2.cpython-38-aarch64-linux-gnu.so.2.50.0 pybackend2.cpython-38-aarch64-linux-gnu.so && \
+    ln -s pyrealsense2.cpython-38-aarch64-linux-gnu.so.2.50.0 pyrealsense2.cpython-38-aarch64-linux-gnu.so
+
+RUN apt-get update && apt-get install -y python3-colcon-common-extensions \
+    ros-foxy-rmw-cyclonedds-cpp ros-foxy-rosidl-generator-dds-idl \
+    ros-foxy-geometry-msgs ros-foxy-ament-lint-auto ros-foxy-rosidl-default-generators \
+    ros-foxy-rviz2 ros-foxy-ros-base
 USER ${USERNAME}
 
 # Fix ./zshrc file
 RUN sed -i "s/\\\\\\\\/\\\\/g" /home/${USERNAME}/.zshrc && \
     sed -i "s/\\\\n/\\n/g" /home/${USERNAME}/.zshrc
 
-# RUN /home/${USERNAME}/miniforge3/bin/conda config --env --add channels robostack-staging && \
-#     /home/${USERNAME}/miniforge3/bin/mamba install -y ros-humble-ros-base python3-colcon-common-extensions
+# # # Install unitree ros
+RUN git clone https://github.com/unitreerobotics/unitree_ros2.git && \
+    cd unitree_ros2/cyclonedds_ws/src && \
+    git clone https://github.com/ros2/rmw_cyclonedds -b foxy && \
+    git clone https://github.com/eclipse-cyclonedds/cyclonedds -b releases/0.10.x && \
+    cd .. && \
+    colcon build --packages-select cyclonedds
+
+RUN cd unitree_ros2/cyclonedds_ws && \
+    /usr/bin/pip install empy==3.3.2 catkin_pkg pyparsing lark && \
+    /bin/zsh -c "source /opt/ros/foxy/setup.zsh && colcon build"
 
 
-# # Install unitree ros
-# RUN git clone https://github.com/unitreerobotics/unitree_ros2.git && \
-#     cd unitree_ros2/cyclonedds_ws/src && \
-#     git clone https://github.com/ros2/rmw_cyclonedds -b humble && \
-#     git clone https://github.com/eclipse-cyclonedds/cyclonedds -b releases/0.10.x && \
-#     cd .. && \
-#     colcon build --packages-select cyclonedds
-
-# RUN cd unitree_ros2/cyclonedds_ws && \
-#     /home/${USERNAME}/miniforge3/bin/pip install empy==3.3.2 catkin_pkg pyparsing lark && \
-#     /bin/zsh -c "cd ~/unitree_ros2/cyclonedds_ws && mamba activate base && colcon build"
-
-# RUN sed -i "s/\\\\\\\\/\\\\/g" /home/${USERNAME}/.zshrc && \
-#     sed -i "s/\\\\n/\\n/g" /home/${USERNAME}/.zshrc
-
-# RUN echo "source /home/\${USERNAME}/unitree_ros2/cyclonedds_ws/install/setup.zsh" >> /home/${USERNAME}/.zshrc && \
-#     echo "export CYCLONEDDS_URI=/home/\${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml" >> /home/${USERNAME}/.zshrc && \
-#     sed -i "s/enp2s0/eth0/g" /home/${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml
+RUN echo "source /home/\${USERNAME}/unitree_ros2/cyclonedds_ws/install/setup.zsh" >> /home/${USERNAME}/.zshrc && \
+    echo "export CYCLONEDDS_URI=/home/\${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml" >> /home/${USERNAME}/.zshrc && \
+    sed -i "s/enp2s0/eth0/g" /home/${USERNAME}/unitree_ros2/cyclonedds_ws/src/cyclonedds.xml
 
 # RUN echo "source /home/\${USERNAME}/unitree-api/ros2/install/setup.zsh" >> /home/${USERNAME}/.zshrc

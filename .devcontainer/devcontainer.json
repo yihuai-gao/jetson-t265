@@ -11,6 +11,7 @@
     "--volume=/tmp/.X11-unix/:/tmp/.X11-unix/", // For GUI display
     "--runtime=nvidia",
     "--volume=/dev:/dev",
+    "--network=host",
     "--device-cgroup-rule=c 81:* rmw",
     "--device-cgroup-rule=c 189:* rmw"
   ],
